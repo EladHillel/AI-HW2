@@ -56,8 +56,8 @@ def run_agents():
                 start = time.time()
                 op = agent.run_step(env, i, args.time_limit)
                 end = time.time()
-                # if end - start > args.time_limit:
-                #     raise RuntimeError("Agent used too much time!")
+                if end - start > args.time_limit:
+                    raise RuntimeError("Agent used too much time!")
                 env.apply_operator(i, op)
                 if args.console_print:
                     print('robot ' + str(i) + ' chose ' + op)
