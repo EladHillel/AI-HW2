@@ -35,9 +35,39 @@ class AgentGreedyImproved(AgentGreedy):
 
 class AgentMinimax(Agent):
     # TODO: section b : 1
+    def heuristic(self, env: WarehouseEnv, robot_id: int):
+        return smart_heuristic(env, robot_id)
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        raise NotImplementedError()
-
+        initial_time = time.time()
+        depth = 1
+        solution = None
+        NORMAL_RUNS_TIME_LIMIT = 0.25 # Branching factor is 4. so i expect the last run to take 4 times as long as the previous ones - no reason to run it
+        while time.time()-initial_time < time_limit*NORMAL_RUNS_TIME_LIMIT: # depth < 2: #
+            _,solution = self.run_minimax(env, agent_id, agent_id, depth)
+            depth += 1
+        print ("minmax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
+        return solution
+            
+    def run_minimax(self, env: WarehouseEnv, result_agent_id: int,cur_agent_id: int, depth: int):
+        if env.done() or depth == 0:
+            return self.heuristic(env, cur_agent_id), None
+        operations, children = self.successors(env, cur_agent_id)
+        children_vals = [self.run_minimax(child, result_agent_id,1 - cur_agent_id, depth - 1)[0] for child in
+                         children]
+        if result_agent_id == cur_agent_id:
+            cur_max = -float('inf')
+            for i in range(len(children_vals)):
+                if children_vals[i] > cur_max:
+                    cur_max = children_vals[i]
+                    operation = operations[i]
+            return cur_max, operation
+        else:
+            cur_min = float('inf')
+            for i in range(len(children_vals)):
+                if children_vals[i] < cur_min:
+                    cur_min = children_vals[i]
+                    operation = operations[i]
+            return cur_min, operation
 
 class AgentAlphaBeta(Agent):
     # TODO: section c : 1
@@ -61,6 +91,7 @@ class AgentExpectimax(Agent):
                 solution = next_solution
                 depth += 1
         except Exception as e:
+            print ("expectimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
             return solution
 
     def run_expectimax(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id):
@@ -108,9 +139,15 @@ class AgentHardCoded(Agent):
     def __init__(self):
         self.step = 0
         # specifiy the path you want to check - if a move is illegal - the agent will choose a random move
-        self.trajectory = ["move north", "move east", "move north", "move north", "pick_up", "move east", "move east",
-                           "move south", "move south", "move south", "move south", "drop_off"]
-
+        # self.trajectory = ["move north", "move east", "move north", "move north", "pick_up", "move east", "move east",
+        #                    "move south", "move south", "move south", "move south", "drop_off"]
+        self.trajectory = ["move north","move south","move north","move south","move north","move south","move north","move south",
+                           "move north","move south","move north","move south","move north","move south","move north","move south",
+                           "move north","move south","move north","move south","move north","move south","move north","move south",
+                           "move north","move south","move north","move south","move north","move south","move north","move south",
+                           "move north","move south","move north","move south","move north","move south","move north","move south",
+                           "move north","move south","move north","move south","move north","move south","move north","move south"]
+        
     def run_step(self, env: WarehouseEnv, robot_id, time_limit):
         if self.step == len(self.trajectory):
             return self.run_random_step(env, robot_id, time_limit)
