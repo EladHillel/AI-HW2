@@ -51,7 +51,7 @@ class AgentExpectimax(Agent):
 
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 10**-3
+        time_error = 0.25*time_limit
         depth = 1
         next_solution = None
         solution = None
