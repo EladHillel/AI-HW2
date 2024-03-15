@@ -26,7 +26,21 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     this_robot = env.robots[robot_id]
     other_robot = env.robots[1-robot_id]
     return goodness(this_robot) - goodness(other_robot)
-
+def not_so_smart_heuristic(env: WarehouseEnv, robot_id: int):
+    this_robot = env.robots[robot_id]
+    value = 0
+    value += 1000*this_robot.credit
+    if (this_robot.package is not None):
+        value += 250
+        value -= manhattan_distance(this_robot.position, this_robot.package.destination)
+    else:
+        value -= closeset_package_dist(env, robot_id)
+    return value
+def closeset_package_dist(env: WarehouseEnv, robot_id: int):
+    distance = float('inf')
+    for pack in env.packages:
+        distance = min(distance, manhattan_distance(env.robots[robot_id].position, pack.position))
+    return distance
 
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
@@ -36,38 +50,41 @@ class AgentGreedyImproved(AgentGreedy):
 class AgentMinimax(Agent):
     # TODO: section b : 1
     def heuristic(self, env: WarehouseEnv, robot_id: int):
-        return smart_heuristic(env, robot_id)
+        return not_so_smart_heuristic(env, robot_id)
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
+        time_error = 0.1*time_limit
         depth = 1
+        next_solution = None
         solution = None
-        NORMAL_RUNS_TIME_LIMIT = 0.25 # Branching factor is 4. so i expect the last run to take 4 times as long as the previous ones - no reason to run it
-        while time.time()-initial_time < time_limit*NORMAL_RUNS_TIME_LIMIT: # depth < 2: #
-            _,solution = self.run_minimax(env, agent_id, agent_id, depth)
-            depth += 1
-        print ("minmax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
-        return solution
-            
-    def run_minimax(self, env: WarehouseEnv, result_agent_id: int,cur_agent_id: int, depth: int):
-        if env.done() or depth == 0:
-            return self.heuristic(env, cur_agent_id), None
-        operations, children = self.successors(env, cur_agent_id)
-        children_vals = [self.run_minimax(child, result_agent_id,1 - cur_agent_id, depth - 1)[0] for child in
+        try:
+            while True:
+                _, next_solution = self.run_expectimax(env, agent_id, initial_time + time_limit - time_error, depth, agent_id)
+                solution = next_solution
+                depth += 1
+        except Exception as e:
+            # print ("minimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
+            return solution
+
+    def run_expectimax(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id):
+        curr_time = time.time()
+        if(curr_time >= time_boundary):
+            raise TimeoutError
+
+        if(env.done() or depth == 0):
+            return self.heuristic(env, agent_id), 'park'
+
+        operators, children = self.successors(env,agent_id)
+        children_vals = [self.run_expectimax(child, agent_id, time_boundary, depth - 1, 1 - turn_id)[0] for child in
                          children]
-        if result_agent_id == cur_agent_id:
-            cur_max = -float('inf')
-            for i in range(len(children_vals)):
-                if children_vals[i] > cur_max:
-                    cur_max = children_vals[i]
-                    operation = operations[i]
-            return cur_max, operation
+
+        if turn_id == agent_id:
+            best_child_index = max(range(len(children_vals)), key=lambda index: children_vals[index])
+            return children_vals[best_child_index], operators[best_child_index]
+
         else:
-            cur_min = float('inf')
-            for i in range(len(children_vals)):
-                if children_vals[i] < cur_min:
-                    cur_min = children_vals[i]
-                    operation = operations[i]
-            return cur_min, operation
+            worst_child_index = min(range(len(children_vals)), key=lambda index: children_vals[index])
+            return children_vals[worst_child_index], operators[worst_child_index]
 
 class AgentAlphaBeta(Agent):
     # TODO: section c : 1
@@ -81,7 +98,7 @@ class AgentExpectimax(Agent):
 
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 10**-3
+        time_error = 0.1*time_limit
         depth = 1
         next_solution = None
         solution = None
@@ -91,7 +108,7 @@ class AgentExpectimax(Agent):
                 solution = next_solution
                 depth += 1
         except Exception as e:
-            print ("expectimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
+            # print ("expectimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
             return solution
 
     def run_expectimax(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id):

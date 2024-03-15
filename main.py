@@ -5,7 +5,7 @@ from WarehouseEnv import WarehouseEnv
 import argparse
 import submission
 import Agent
-
+SEED = 1
 
 def run_agents():
     parser = argparse.ArgumentParser(description='Test your submission by pitting agents against each other.')
@@ -41,7 +41,7 @@ def run_agents():
     env = WarehouseEnv()
 
     if not args.tournament:
-        env.generate(args.seed, 2*args.count_steps)
+        env.generate(SEED, 2*args.count_steps)
 
         if args.console_print:
             print('initial board:')
@@ -56,8 +56,8 @@ def run_agents():
                 start = time.time()
                 op = agent.run_step(env, i, args.time_limit)
                 end = time.time()
-                # if end - start > args.time_limit:
-                #     raise RuntimeError("Agent used too much time!")
+                if end - start > args.time_limit:
+                    raise RuntimeError("Agent used too much time!")
                 env.apply_operator(i, op)
                 if args.console_print:
                     print('robot ' + str(i) + ' chose ' + op)
@@ -79,7 +79,7 @@ def run_agents():
         num_of_games = 100
 
         for i in range(num_of_games):
-            env.generate(args.seed + i, 2*args.count_steps)
+            env.generate(SEED + i, 2*args.count_steps)
             if args.console_print:
                 print('initial board:')
                 env.print()
@@ -117,4 +117,6 @@ def run_agents():
 
 
 if __name__ == "__main__":
-    run_agents()
+    for i in range(50):
+        SEED = i+1
+        run_agents()
