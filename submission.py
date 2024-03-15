@@ -8,11 +8,13 @@ from functools import reduce
 
 # TODO: section a : 3
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
+    this_robot = env.robots[robot_id]
+    other_robot = env.robots[1 - robot_id]
     package_reward = lambda package: 2*manhattan_distance(package.position, package.destination)
     best_next_package = lambda robot: max([p for p in env.packages if p.on_board], key=lambda p: package_reward(p)*(10-manhattan_distance(p.position, robot.position)))
     next_package_weight = lambda robot, package: ((10-manhattan_distance(package.position, robot.position))**2)*package_reward(package)
     best_charger = lambda robot: max(env.charge_stations, key = lambda cs:(10 - manhattan_distance(cs.position, robot.position)))
-
+    alreadyWon = lambda: this_robot.credit > other_robot.credit and other_robot.battery == 0
     def goodness(robot):
         sum = 1000*(robot.credit + env.num_steps*robot.battery)
         if (robot.package):
@@ -20,11 +22,9 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
             sum += 100*package_reward(robot.package)*(10-dist)
         else:
             sum += next_package_weight(robot, best_next_package(robot))
-        if robot.battery < 7 and robot.credit != 0:
+        if robot.battery < 7 and robot.credit != 0 and not alreadyWon():
             sum += 1000*(10-manhattan_distance(best_charger(robot).position, robot.position))
         return sum
-    this_robot = env.robots[robot_id]
-    other_robot = env.robots[1-robot_id]
     return goodness(this_robot) - goodness(other_robot)
 def not_so_smart_heuristic(env: WarehouseEnv, robot_id: int):
     this_robot = env.robots[robot_id]
@@ -98,7 +98,7 @@ class AgentExpectimax(Agent):
 
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 0.1*time_limit
+        time_error = 0.25*time_limit
         depth = 1
         next_solution = None
         solution = None
