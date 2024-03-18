@@ -3,10 +3,8 @@ import time
 from Agent import Agent, AgentGreedy
 from WarehouseEnv import WarehouseEnv, manhattan_distance
 import random
-from functools import reduce
 
 
-# TODO: section a : 3
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
     this_robot = env.robots[robot_id]
     other_robot = env.robots[1 - robot_id]
@@ -16,44 +14,29 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     best_charger = lambda robot: max(env.charge_stations, key = lambda cs:(10 - manhattan_distance(cs.position, robot.position)))
     alreadyWon = lambda: this_robot.credit > other_robot.credit and other_robot.battery == 0
     def goodness(robot):
-        sum = 1000*(robot.credit + env.num_steps*robot.battery)
+        sum = 1000*(robot.credit)
         if (robot.package):
             dist = manhattan_distance(robot.position, robot.package.destination)
             sum += 100*package_reward(robot.package)*(10-dist)
         else:
             sum += next_package_weight(robot, best_next_package(robot))
-        if robot.battery < 7 and robot.credit != 0 and not alreadyWon():
-            sum += 1000*(10-manhattan_distance(best_charger(robot).position, robot.position))
+        if robot.credit != 0 and not alreadyWon():
+            sum += 4000*robot.battery
+            if robot.battery < 7:
+                sum += 1000*(10-manhattan_distance(best_charger(robot).position, robot.position))
         return sum
     return goodness(this_robot) - goodness(other_robot)
-def not_so_smart_heuristic(env: WarehouseEnv, robot_id: int):
-    this_robot = env.robots[robot_id]
-    value = 0
-    value += 1000*this_robot.credit
-    if (this_robot.package is not None):
-        value += 250
-        value -= manhattan_distance(this_robot.position, this_robot.package.destination)
-    else:
-        value -= closeset_package_dist(env, robot_id)
-    return value
-def closeset_package_dist(env: WarehouseEnv, robot_id: int):
-    distance = float('inf')
-    for pack in env.packages:
-        distance = min(distance, manhattan_distance(env.robots[robot_id].position, pack.position))
-    return distance
-
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
         return smart_heuristic(env, robot_id)
 
 
 class AgentMinimax(Agent):
-    # TODO: section b : 1
     def heuristic(self, env: WarehouseEnv, robot_id: int):
         return smart_heuristic(env, robot_id)
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 0.1*time_limit
+        time_error = 0.2*time_limit
         depth = 1
         next_solution = None
         solution = None
@@ -63,7 +46,6 @@ class AgentMinimax(Agent):
                 solution = next_solution
                 depth += 1
         except TimeoutError as e:
-            print ("minimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
             return solution
 
     def run_minimax(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id):
@@ -74,7 +56,7 @@ class AgentMinimax(Agent):
         if(env.done() or depth == 0):
             return self.heuristic(env, agent_id), 'park'
 
-        operators, children = self.successors(env,agent_id)
+        operators, children = self.successors(env, agent_id)
         children_vals = [self.run_minimax(child, agent_id, time_boundary, depth - 1, 1 - turn_id)[0] for child in
                          children]
 
@@ -92,7 +74,7 @@ class AgentAlphaBeta(Agent):
         return smart_heuristic(env, robot_id)
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 0.1*time_limit
+        time_error = 0.2*time_limit
         depth = 1
         next_solution = None
         solution = None
@@ -102,7 +84,6 @@ class AgentAlphaBeta(Agent):
                 solution = next_solution
                 depth += 1
         except TimeoutError as e:
-            print ("alphabeta took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
             return solution
 
     def run_alpha_beta(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id, alpha = -float('inf'), beta = float('inf')):
@@ -146,7 +127,7 @@ class AgentExpectimax(Agent):
 
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         initial_time = time.time()
-        time_error = 0.25*time_limit
+        time_error = 0.2*time_limit
         depth = 1
         next_solution = None
         solution = None
@@ -156,7 +137,6 @@ class AgentExpectimax(Agent):
                 solution = next_solution
                 depth += 1
         except TimeoutError as e:
-            # print ("expectimax took " + str(time.time()-initial_time) + "seconds with a depth of" + str(depth))
             return solution
 
     def run_expectimax(self, env: WarehouseEnv, agent_id, time_boundary, depth, turn_id):
